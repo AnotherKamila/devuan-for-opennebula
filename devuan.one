@@ -1,0 +1,4 @@
+NAME          = "Devuan Jessie - KVM"
+PATH          = "./devuan.qcow2"
+TYPE          = "OS"
+DESCRIPTION   = "Devuan Jessie"

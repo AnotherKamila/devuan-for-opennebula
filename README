@@ -1,0 +1,4 @@
+genisoimage qemu-utils libguestfs-tools
+
+disable automount
+don't run VirtualBox at the same time :D
