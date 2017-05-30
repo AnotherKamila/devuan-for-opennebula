@@ -1,7 +1,5 @@
 SHA256SUMS
-devuan.qcow2
-devuan_jessie_1.0.0_amd64_opennebula.qcow2
-devuan_jessie_1.0.0_amd64_virtual.qcow2
-devuan_jessie_1.0.0_amd64_virtual.qcow2.xz
-packages.iso
+*.qcow2
+*.xz
+*.iso
 packages/

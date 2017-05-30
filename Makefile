@@ -15,6 +15,9 @@ download_files: devuan_$(DEVUAN_VERSION)_virtual.qcow2 packages/one-context_$(ON
 qcow2: devuan_$(DEVUAN_VERSION)_opennebula.qcow2  ## Make a qcow2-formatted opennebula image
 	ln -s $< devuan.qcow2
 
+raw: devuan_$(DEVUAN_VERSION)_opennebula.raw  ## Make a raw opennebula image
+	ln -s $< devuan.raw
+
 ##### Targets that do stuff
 
 devuan_$(DEVUAN_VERSION)_virtual.qcow2.xz:
@@ -24,6 +27,12 @@ devuan_$(DEVUAN_VERSION)_virtual.qcow2.xz:
 
 devuan_$(DEVUAN_VERSION)_virtual.qcow2: devuan_$(DEVUAN_VERSION)_virtual.qcow2.xz
 	unxz --keep $<
+
+devuan_$(DEVUAN_VERSION)_virtual_small.qcow2: devuan_$(DEVUAN_VERSION)_virtual.qcow2
+	# @echo Neet root privileges for guestfish
+	# sudo guestfish --add $<
+	echo NOT DONE YET -- stub here
+	cp $< $@  # TODO
 
 packages/one-context_$(ONECONTEXT_VERSION).deb:
 	mkdir -p packages
@@ -35,11 +44,14 @@ packages.iso: packages/one-context_$(ONECONTEXT_VERSION).deb
 	genisoimage -o packages.iso -R -J -V PACKAGES packages/
 	touch $@
 
-devuan_$(DEVUAN_VERSION)_opennebula.qcow2: devuan_$(DEVUAN_VERSION)_virtual.qcow2 packages.iso contextualize.sh
+devuan_$(DEVUAN_VERSION)_opennebula.qcow2: devuan_$(DEVUAN_VERSION)_virtual_small.qcow2 packages.iso contextualize.sh
 	cp $< $@
 	@echo Neet root privileges for virt-customize
-	sudo virt-customize -v --format qcow2 --add $@ --no-network --attach packages.iso --run contextualize.sh --root-password disabled
+	sudo virt-customize -v --add $@ --no-network --attach packages.iso --run contextualize.sh --root-password disabled
 	# virt-sparsify --in-place $@
+
+devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_opennebula.qcow2
+	qemu-img convert $< $@
 
 ##### Helper targets
 
