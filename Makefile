@@ -56,11 +56,8 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo mount --bind /dev  /tmp/mnt/devuan/dev
 	sudo mount --bind /sys  /tmp/mnt/devuan/sys
 	sudo mount --bind /proc /tmp/mnt/devuan/proc
-	sudo mkdir -p /tmp/mnt/devuan/run/resolvconf
 	sudo cp /tmp/mnt/devuan/etc/resolv.conf /tmp/mnt/devuan/etc/resolv.conf.orig
 	sudo cp /etc/resolv.conf /tmp/mnt/devuan/etc/resolv.conf
-
-	DEV=$$(losetup -a | grep $(DEVUAN_VERSION) | cut -d: -f1 | head -n1); sudo chroot /tmp/mnt/devuan grub-install $$DEV
 
 	cp one-context_$(ONECONTEXT_VERSION).deb /tmp/mnt/devuan/tmp
 	sudo chroot /tmp/mnt/devuan dpkg -i /tmp/one-context_$(ONECONTEXT_VERSION).deb
@@ -70,6 +67,7 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo chroot /tmp/mnt/devuan apt-get update
 	sudo chroot /tmp/mnt/devuan apt-get -t jessie-backports install -y cloud-utils
 	sudo rm /tmp/mnt/devuan/etc/apt/sources.list.d/devuan-backports.list
+
 	sudo chroot /tmp/mnt/devuan apt-get update
 	sudo chroot /tmp/mnt/devuan apt-get upgrade -y
 	sudo chroot /tmp/mnt/devuan apt-get install -y ruby
@@ -79,23 +77,17 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo cp /tmp/mnt/devuan/etc/resolv.conf.orig /tmp/mnt/devuan/etc/resolv.conf
 	sync
 	sleep 2
-	sync
-	sudo umount /tmp/mnt/devuan/proc
-	sudo umount /tmp/mnt/devuan
+	sudo umount -l /tmp/mnt/devuan/proc
+	sudo umount -l /tmp/mnt/devuan/sys
+	sudo umount -l /tmp/mnt/devuan/dev
+	sudo umount -l /tmp/mnt/devuan
+
+	sudo virt-customize -v --add WORK-$@ --no-network --run-command 'grub-install `ls -1 /dev/*da | head -n1`'  # hda, sda, vda, who am I to know
 
 	# 4. clean up
 	sudo qemu-nbd --disconnect /dev/nbd0
 	DEV=$$(losetup -a | grep $(DEVUAN_VERSION) | cut -d: -f1); sudo losetup -d $$DEV
 	mv WORK-$@ $@
-
-clean_mounts:
-	sudo umount -l /tmp/mnt/devuan_src || true
-	sudo umount -l /tmp/mnt/devuan/proc || true
-	sudo umount -l /tmp/mnt/devuan/sys || true
-	sudo umount -l /tmp/mnt/devuan/dev || true
-	sudo umount -l /tmp/mnt/devuan || true
-	sudo qemu-nbd --disconnect /dev/nbd0 || true
-	DEV=$$(losetup -a | grep $(DEVUAN_VERSION) | cut -d: -f1); sudo losetup -d $$DEV || true
 
 devuan_$(DEVUAN_VERSION)_opennebula.qcow2: devuan_$(DEVUAN_VERSION)_opennebula.raw
 	qemu-img convert $< $@
@@ -104,3 +96,12 @@ devuan_$(DEVUAN_VERSION)_opennebula.qcow2: devuan_$(DEVUAN_VERSION)_opennebula.r
 
 clean:  ## Removes files listed in ./.gitignore
 	rm -f $$(cat ./.gitignore | grep -v '^#')
+
+clean_mounts:  ## Unmounts everything.
+	sudo umount -l /tmp/mnt/devuan_src || true
+	sudo umount -l /tmp/mnt/devuan/proc || true
+	sudo umount -l /tmp/mnt/devuan/sys || true
+	sudo umount -l /tmp/mnt/devuan/dev || true
+	sudo umount -l /tmp/mnt/devuan || true
+	sudo qemu-nbd --disconnect /dev/nbd0 || true
+	DEV=$$(losetup -a | grep $(DEVUAN_VERSION) | cut -d: -f1); sudo losetup -d $$DEV || true
