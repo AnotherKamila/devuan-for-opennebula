@@ -1,5 +1,6 @@
 SHA256SUMS
 *.qcow2
+*.raw
 *.xz
 *.iso
-packages/
+*.deb
