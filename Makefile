@@ -41,7 +41,7 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	@echo Neet root privileges for loop-mounting the images
 
 	# 1. loop mount original image
-	sudo modprobe nbd
+	sudo modprobe nbd max_part=63
 	sudo qemu-nbd --connect=/dev/nbd0 $<
 
 	# 2. loop new image
@@ -57,7 +57,8 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo mount --bind /sys  /tmp/mnt/devuan/sys
 	sudo mount --bind /proc /tmp/mnt/devuan/proc
 	sudo mkdir -p /tmp/mnt/devuan/run/resolvconf
-	sudo cp /etc/resolv.conf /tmp/mnt/devuan/run/resolvconf/
+	sudo cp /tmp/mnt/devuan/etc/resolv.conf /tmp/mnt/devuan/etc/resolv.conf.orig
+	sudo cp /etc/resolv.conf /tmp/mnt/devuan/etc/resolv.conf
 
 	DEV=$$(losetup -a | grep $(DEVUAN_VERSION) | cut -d: -f1 | head -n1); sudo chroot /tmp/mnt/devuan grub-install $$DEV
 
@@ -75,6 +76,7 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 
 	sudo chroot /tmp/mnt/devuan passwd -d root
 
+	sudo cp /tmp/mnt/devuan/etc/resolv.conf.orig /tmp/mnt/devuan/etc/resolv.conf
 	sync
 	sleep 2
 	sync
