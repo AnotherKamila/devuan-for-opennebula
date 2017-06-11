@@ -45,7 +45,7 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo qemu-nbd --connect=/dev/nbd0 $<
 
 	# 2. loop new image
-	DEV=$$(sudo losetup -f --show WORK-$@); echo ';' | sudo sfdisk $$DEV; sudo losetup -d $$DEV
+	DEV=$$(sudo losetup -f --show WORK-$@); echo '2408' | sudo sfdisk $$DEV; sudo losetup -d $$DEV
 	DEV=$$(sudo losetup -P -f --show WORK-$@); sudo mkfs.ext4 -L $(DEVUAN_VERSION) $${DEV}p1; sudo mount $${DEV}p1 /tmp/mnt/devuan
 
 	# 3. copy from orig to mine
