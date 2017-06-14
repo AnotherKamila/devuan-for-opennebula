@@ -70,7 +70,8 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 
 	sudo chroot /tmp/mnt/devuan apt-get update
 	sudo chroot /tmp/mnt/devuan apt-get upgrade -y
-	sudo chroot /tmp/mnt/devuan apt-get install -y ruby
+	sudo chroot /tmp/mnt/devuan apt-get install -y ruby  # for onegate
+	sudo chroot /tmp/mnt/devuan apt-get install -y acpid # for the shutdown and reboot signals
 
 	sudo chroot /tmp/mnt/devuan passwd -d root
 
