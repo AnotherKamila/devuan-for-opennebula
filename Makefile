@@ -45,7 +45,7 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo qemu-nbd --connect=/dev/nbd0 $<
 
 	# 2. loop new image
-	DEV=$$(sudo losetup -f --show WORK-$@); echo '2408' | sudo sfdisk $$DEV; sudo losetup -d $$DEV
+	DEV=$$(sudo losetup -f --show WORK-$@); echo '2048' | sudo sfdisk $$DEV; sudo losetup -d $$DEV
 	DEV=$$(sudo losetup -P -f --show WORK-$@); sudo mkfs.ext4 -L $(DEVUAN_VERSION) $${DEV}p1; sudo mount $${DEV}p1 /tmp/mnt/devuan
 
 	# 3. copy from orig to mine
@@ -82,7 +82,10 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo umount -l /tmp/mnt/devuan/dev
 	sudo umount -l /tmp/mnt/devuan
 
-	sudo virt-customize -v --add WORK-$@ --no-network --run-command 'grub-install `ls -1 /dev/*da | head -n1`'  # hda, sda, vda, who am I to know
+	sync
+	sleep 2
+
+	sudo virt-customize -v --format raw --add WORK-$@ --no-network --run-command 'grub-install `ls -1 /dev/*da | head -n1`'  # hda, sda, vda, who am I to know
 
 	# 4. clean up
 	sudo qemu-nbd --disconnect /dev/nbd0
