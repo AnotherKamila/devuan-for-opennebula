@@ -86,7 +86,7 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sync
 	sleep 2
 
-	sudo virt-customize -v --format raw --add WORK-$@ --no-network --run-command 'grub-install `ls -1 /dev/*da | head -n1`'  # hda, sda, vda, who am I to know
+	sudo virt-customize -v --format raw --add WORK-$@ --no-network --run-command 'update-grub; grub-install `ls -1 /dev/?da | head -n1`'  # hda, sda, vda, who am I to know
 
 	# 4. clean up
 	sudo qemu-nbd --disconnect /dev/nbd0
