@@ -1,5 +1,11 @@
-DEVUAN_VERSION=jessie_1.0.0_amd64
-ONECONTEXT_VERSION=5.0.3
+# set these according to the path and filename at the mirror (files.devuan.org)
+DEVUAN_CODENAME=ascii
+DEVUAN_IMAGE=devuan_ascii_2.0.0-beta_amd64_qemu
+MIRROR_BASEURL=https://files.devuan.org/devuan_ascii_beta/virtual
+
+# check https://github.com/OpenNebula/addon-context-linux/releases for available versions, we want the .deb
+ONECONTEXT_VERSION=5.4.2-1
+ONECONTEXT_BASEURL=https://github.com/OpenNebula/addon-context-linux/releases/download/v5.4.2
 
 .PHONY: help clean clean_mounts
 
@@ -10,35 +16,33 @@ help: # https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html <3
 
 ##### Targets for humans
 
-download_files: devuan_$(DEVUAN_VERSION)_virtual.qcow2 packages/one-context_$(ONECONTEXT_VERSION).deb  ## Download the needed files
+download_files: $(DEVUAN_IMAGE).qcow2 packages/one-context_$(ONECONTEXT_VERSION).deb  ## Download the needed files
 
-qcow2: devuan_$(DEVUAN_VERSION)_opennebula.qcow2  ## Make a qcow2-formatted opennebula image
+qcow2: $(DEVUAN_IMAGE)_opennebula.qcow2  ## Make a qcow2-formatted opennebula image
 
-raw: devuan_$(DEVUAN_VERSION)_opennebula.raw  ## Make a raw opennebula image
+raw: $(DEVUAN_IMAGE)_opennebula.raw  ## Make a raw opennebula image
 
 ##### Targets that do stuff
 
 ## downloading and such
 
-devuan_$(DEVUAN_VERSION)_virtual.qcow2.xz:
-	wget https://files.devuan.org/devuan_jessie/virtual/devuan_jessie_1.0.0_amd64_virtual.qcow2.xz
-	wget https://files.devuan.org/devuan_jessie/virtual/SHA256SUMS
+$(DEVUAN_IMAGE).qcow2:
+	wget $(MIRROR_BASEURL)/$(DEVUAN_IMAGE).qcow2
+	rm -f SHA256SUMS
+	wget $(MIRROR_BASEURL)/SHA256SUMS
 	grep $@ SHA256SUMS | sha256sum -c || mv $@ $@.BADSUM
 
-devuan_$(DEVUAN_VERSION)_virtual.qcow2: devuan_$(DEVUAN_VERSION)_virtual.qcow2.xz
-	unxz --keep $<
-
 one-context_$(ONECONTEXT_VERSION).deb:
-	wget https://github.com/OpenNebula/addon-context-linux/releases/download/v$(ONECONTEXT_VERSION)/one-context_$(ONECONTEXT_VERSION).deb
+	wget $(ONECONTEXT_BASEURL)/one-context_$(ONECONTEXT_VERSION).deb
 	touch $@
 
 ## making the image
 
-devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 one-context_$(ONECONTEXT_VERSION).deb
+$(DEVUAN_IMAGE)_opennebula.raw: $(DEVUAN_IMAGE).qcow2 one-context_$(ONECONTEXT_VERSION).deb
 	dd if=/dev/zero of=WORK-$@ bs=4M count=750
 	mkdir -p /tmp/mnt/devuan_src /tmp/mnt/devuan
 
-	@echo Neet root privileges for loop-mounting the images
+	@echo Need root privileges for loop-mounting the images
 
 	# 1. loop mount original image
 	sudo modprobe nbd max_part=63
@@ -46,7 +50,7 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 
 	# 2. loop new image
 	DEV=$$(sudo losetup -f --show WORK-$@); echo '2048' | sudo sfdisk $$DEV; sudo losetup -d $$DEV
-	DEV=$$(sudo losetup -P -f --show WORK-$@); sudo mkfs.ext4 -L $(DEVUAN_VERSION) $${DEV}p1; sudo mount $${DEV}p1 /tmp/mnt/devuan
+	DEV=$$(sudo losetup -P -f --show WORK-$@); sudo mkfs.ext4 -L $(DEVUAN_IMAGE) $${DEV}p1; sudo mount $${DEV}p1 /tmp/mnt/devuan
 
 	# 3. copy from orig to mine
 	sudo mount /dev/nbd0p1 /tmp/mnt/devuan_src
@@ -59,19 +63,19 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 	sudo cp /tmp/mnt/devuan/etc/resolv.conf /tmp/mnt/devuan/etc/resolv.conf.orig
 	sudo cp /etc/resolv.conf /tmp/mnt/devuan/etc/resolv.conf
 
-	cp one-context_$(ONECONTEXT_VERSION).deb /tmp/mnt/devuan/tmp
-	sudo chroot /tmp/mnt/devuan dpkg -i /tmp/one-context_$(ONECONTEXT_VERSION).deb
-
 	# dependencies are broken, so...
-	echo 'deb http://packages.devuan.org/merged jessie-backports main' | sudo tee /tmp/mnt/devuan/etc/apt/sources.list.d/devuan-backports.list >/dev/null
+	echo "deb http://packages.devuan.org/merged $(DEVUAN_CODENAME)-backports main" | sudo tee /tmp/mnt/devuan/etc/apt/sources.list.d/devuan-backports.list >/dev/null
 	sudo chroot /tmp/mnt/devuan apt-get update
-	sudo chroot /tmp/mnt/devuan apt-get -t jessie-backports install -y cloud-utils
+	sudo chroot /tmp/mnt/devuan apt-get -t $(DEVUAN_CODENAME)-backports install -y cloud-utils
 	sudo rm /tmp/mnt/devuan/etc/apt/sources.list.d/devuan-backports.list
 
 	sudo chroot /tmp/mnt/devuan apt-get update
 	sudo chroot /tmp/mnt/devuan apt-get upgrade -y
-	sudo chroot /tmp/mnt/devuan apt-get install -y ruby  # for onegate
-	sudo chroot /tmp/mnt/devuan apt-get install -y acpid # for the shutdown and reboot signals
+
+	cp one-context_$(ONECONTEXT_VERSION).deb /tmp/mnt/devuan/tmp
+	sudo chroot /tmp/mnt/devuan dpkg -i /tmp/one-context_$(ONECONTEXT_VERSION).deb || true  # will fix below
+	sudo chroot /tmp/mnt/devuan apt-get install -f -y  # fix broken package -- install onecontext dependencies and onecontext
+	sudo chroot /tmp/mnt/devuan apt-get upgrade -y
 
 	sudo chroot /tmp/mnt/devuan passwd -d root
 
@@ -90,10 +94,10 @@ devuan_$(DEVUAN_VERSION)_opennebula.raw: devuan_$(DEVUAN_VERSION)_virtual.qcow2 
 
 	# 4. clean up
 	sudo qemu-nbd --disconnect /dev/nbd0
-	DEV=$$(losetup -a | grep $(DEVUAN_VERSION) | cut -d: -f1); sudo losetup -d $$DEV
+	DEV=$$(losetup -a | grep $(DEVUAN_IMAGE) | cut -d: -f1); sudo losetup -d $$DEV
 	mv WORK-$@ $@
 
-devuan_$(DEVUAN_VERSION)_opennebula.qcow2: devuan_$(DEVUAN_VERSION)_opennebula.raw
+$(DEVUAN_IMAGE)_opennebula.qcow2: $(DEVUAN_IMAGE)_opennebula.raw
 	qemu-img convert $< $@
 
 ##### Helper targets
@@ -101,11 +105,11 @@ devuan_$(DEVUAN_VERSION)_opennebula.qcow2: devuan_$(DEVUAN_VERSION)_opennebula.r
 clean:  ## Removes files listed in ./.gitignore
 	rm -f $$(cat ./.gitignore | grep -v '^#')
 
-clean_mounts:  ## Unmounts everything.
+clean_mounts:  ## Unmounts everything. Run this if a previous run failed.
 	sudo umount -l /tmp/mnt/devuan_src || true
 	sudo umount -l /tmp/mnt/devuan/proc || true
 	sudo umount -l /tmp/mnt/devuan/sys || true
 	sudo umount -l /tmp/mnt/devuan/dev || true
 	sudo umount -l /tmp/mnt/devuan || true
 	sudo qemu-nbd --disconnect /dev/nbd0 || true
-	DEV=$$(losetup -a | grep $(DEVUAN_VERSION) | cut -d: -f1); sudo losetup -d $$DEV || true
+	DEV=$$(losetup -a | grep $(DEVUAN_IMAGE) | cut -d: -f1); sudo losetup -d $$DEV || true
